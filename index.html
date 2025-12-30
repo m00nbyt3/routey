@@ -1,227 +1,108 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Ruta Maps - Nombres Limpios</title>
-  <style>
-    :root { --primary: #1a73e8; --bg: #f8f9fa; --card: #ffffff; }
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 800px; margin: 2rem auto; padding: 0 1rem; background-color: var(--bg); color: #202124; }
-    .card { background: var(--card); padding: 2rem; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.08); }
-    h1 { margin-top: 0; font-size: 1.6rem; }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador de Rutas Google Maps</title>
+    <!-- Estilos de Leaflet para el mapa gratuito -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     
-    .field-group { margin-bottom: 1.5rem; }
-    label { display: block; margin-bottom: 0.5rem; font-weight: 600; color: #3c4043; font-size: 0.9rem; }
-    input { width: 100%; padding: 12px; border: 1px solid #dadce0; border-radius: 6px; font-size: 1rem; box-sizing: border-box; }
-    input:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 2px rgba(26,115,232,0.2); }
-    
-    .details { margin-top: 8px; font-size: 0.9rem; min-height: 24px; display: flex; align-items: center; }
-    .place-tag { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 6px; font-weight: 500; font-size: 0.9rem; }
-    .tag-blue { color: #1a73e8; background: #e8f0fe; }
-    .tag-gray { color: #5f6368; background: #f1f3f4; }
-    .loading { color: #666; font-style: italic; font-size: 0.85rem; }
-    
-    .controls { display: flex; gap: 12px; margin-top: 2rem; border-top: 1px solid #eee; padding-top: 1.5rem; }
-    button { padding: 12px 24px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; transition: 0.2s; }
-    .btn-add { background: white; color: var(--primary); border: 1px solid #dadce0; }
-    .btn-gen { background: var(--primary); color: white; flex-grow: 1; }
+    <style>
+        :root { --primary: #1a73e8; --bg: #f8f9fa; --card: #ffffff; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; background-color: var(--bg); color: #202124; display: flex; gap: 20px; flex-wrap: wrap; }
+        
+        /* Layout de dos columnas en escritorio */
+        .col-inputs { flex: 1; min-width: 300px; }
+        .col-map { flex: 1; min-width: 300px; }
 
-    #output { margin-top: 2rem; display: none; background: #e8f0fe; padding: 1.5rem; border-radius: 8px; }
-    .result-link { display: block; word-break: break-all; margin: 10px 0; padding: 12px; background: white; border-radius: 4px; color: var(--primary); text-decoration: none; border: 1px solid #d2e3fc; }
-  </style>
+        .card { background: var(--card); padding: 1.5rem; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.08); margin-bottom: 20px; }
+        h1 { margin-top: 0; font-size: 1.4rem; color: #202124; }
+        
+        /* Lista de paradas */
+        .stops-container { display: flex; flex-direction: column; gap: 10px; }
+        
+        .stop-row { 
+            display: flex; align-items: flex-start; gap: 8px; 
+            background: #fff; border: 1px solid #e0e0e0; padding: 10px; border-radius: 8px;
+            transition: box-shadow 0.2s;
+        }
+        .stop-row:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+
+        /* Controles de orden */
+        .drag-handle { 
+            display: flex; flex-direction: column; gap: 2px; color: #ccc; cursor: grab; padding-top: 10px; 
+        }
+        .drag-handle:hover { color: #888; }
+        
+        .order-btns { display: flex; flex-direction: column; gap: 2px; margin-top: 5px; }
+        .btn-move { 
+            background: none; border: none; cursor: pointer; color: #5f6368; padding: 2px; font-size: 10px; 
+        }
+        .btn-move:hover { color: var(--primary); background: #f1f3f4; border-radius: 4px; }
+
+        /* Inputs */
+        .input-wrapper { flex-grow: 1; }
+        .stop-label { font-size: 0.75rem; font-weight: 700; color: #1a73e8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; display: block;}
+        input { width: 100%; padding: 10px; border: 1px solid #dadce0; border-radius: 6px; font-size: 0.95rem; box-sizing: border-box; }
+        input:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 2px rgba(26,115,232,0.2); }
+        
+        /* Botón eliminar */
+        .btn-del { border: none; background: none; color: #d93025; cursor: pointer; font-size: 1.2rem; padding: 0 5px; margin-top: 8px; opacity: 0.5; }
+        .btn-del:hover { opacity: 1; background: #fce8e6; border-radius: 4px; }
+
+        /* Etiquetas de resultados */
+        .details { margin-top: 6px; min-height: 20px; font-size: 0.85rem; }
+        .place-tag { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 4px; font-weight: 500; font-size: 0.8rem; }
+        .tag-blue { color: #1a73e8; background: #e8f0fe; }
+        .tag-gray { color: #5f6368; background: #f1f3f4; }
+        .loading { color: #666; font-style: italic; font-size: 0.8rem; }
+
+        /* Botones principales */
+        .controls { display: flex; gap: 10px; margin-top: 1.5rem; border-top: 1px solid #eee; padding-top: 1rem; }
+        button.main-btn { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; transition: 0.2s; font-size: 0.9rem; }
+        .btn-add { background: white; color: var(--primary); border: 1px solid #dadce0; }
+        .btn-gen { background: var(--primary); color: white; flex-grow: 1; }
+        .btn-gen:hover { background: #1557b0; }
+
+        /* Mapa */
+        #map { height: 400px; width: 100%; border-radius: 12px; z-index: 1; }
+        
+        /* Resultado URL */
+        #output { margin-top: 1rem; display: none; background: #e8f0fe; padding: 1rem; border-radius: 8px; }
+        .result-link { display: block; word-break: break-all; margin-top: 8px; padding: 10px; background: white; border-radius: 4px; color: var(--primary); text-decoration: none; border: 1px solid #d2e3fc; font-size: 0.85rem; }
+    </style>
 </head>
 <body>
 
-<div class="card">
-  <h1>📍 Generador de Rutas</h1>
-  <p style="color:#666; margin-bottom:2rem;">
-    Detecta nombres de lugares, hoteles y empresas automáticamente.
-  </p>
+    <div class="col-inputs">
+        <div class="card">
+            <h1>📍 Planificador de Ruta</h1>
+            
+            <div id="stops-list" class="stops-container">
+                <!-- Las paradas se generan aquí por JS -->
+            </div>
 
-  <div id="inputs-list"></div>
+            <div class="controls">
+                <button class="main-btn btn-add" onclick="addStop()">+ Añadir Parada</button>
+                <button class="main-btn btn-gen" onclick="generate()">Generar URL Google Maps</button>
+            </div>
 
-  <div class="controls">
-    <button class="btn-add" onclick="addStop()">+ Añadir Parada</button>
-    <button class="btn-gen" onclick="generate()">Generar Ruta</button>
-  </div>
+            <div id="output">
+                <strong>🔗 Enlace final:</strong>
+                <a id="final-link" class="result-link" href="#" target="_blank"></a>
+            </div>
+        </div>
+    </div>
 
-  <div id="output">
-    <strong>🔗 Enlace generado:</strong>
-    <a id="final-link" class="result-link" href="#" target="_blank"></a>
-  </div>
-</div>
+    <div class="col-map">
+        <div class="card" style="padding: 0; overflow: hidden; height: 400px;">
+            <div id="map"></div>
+        </div>
+        <p style="font-size: 0.8rem; color: #666; margin-top: 5px; text-align: center;">Vista previa (OpenStreetMap)</p>
+    </div>
 
-<script>
-let timeout = null;
-
-document.addEventListener('DOMContentLoaded', () => { for(let i=0; i<4; i++) addStop(); });
-
-function addStop() {
-    const list = document.getElementById('inputs-list');
-    const idx = list.children.length;
-    const div = document.createElement('div');
-    div.className = 'field-group';
-    let txt = idx===0 ? "Origen" : (idx===3 && list.children.length===3 ? "Destino" : "Parada "+idx);
-    
-    div.innerHTML = `
-        <label>${txt}</label>
-        <input type="text" placeholder="URL o Dirección" oninput="handleInput(this)">
-        <div class="details"></div>
-    `;
-    list.appendChild(div);
-}
-
-function handleInput(input) {
-    const details = input.nextElementSibling;
-    details.innerHTML = '';
-    clearTimeout(timeout);
-    
-    const val = input.value.trim();
-    if(!val) {
-        input.removeAttribute('data-val');
-        return;
-    }
-
-    // 1. URLs (Extracción rápida)
-    if (val.includes('http') || val.includes('google.com')) {
-        let extracted = null;
-        let displayName = "Enlace";
-        
-        // Prioridad: Nombre en URL (/place/NOMBRE/)
-        if (val.includes('/place/')) {
-            const m = val.match(/\/place\/([^\/]+)/);
-            if (m && m[1]) {
-                // Decodificar y quitar +
-                let cleanName = decodeURIComponent(m[1]).replace(/\+/g, ' ');
-                // Truco: Si el nombre contiene comas (ej: Calle, 12), cortamos para dejar lo principal
-                if (cleanName.includes(',') && cleanName.length > 25) {
-                    cleanName = cleanName.split(',')[0];
-                }
-                
-                extracted = cleanName; // Usamos el nombre para buscar ruta
-                // Guardamos el nombre limpio para mostrar
-                displayName = "🏢 " + cleanName;
-                input.dataset.val = cleanName; 
-                renderTag(details, displayName, 'blue');
-                return;
-            }
-        }
-
-        // Si es coords ocultas (!3d...!4d)
-        const pin = val.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
-        if (pin) {
-            const coords = `${pin[1]},${pin[2]}`;
-            // Aquí hacemos la magia: LLAMAR A API PARA SACAR NOMBRE REAL DE ESAS COORDS
-            // (Antes solo mostrábamos coords, ahora buscamos qué es)
-            details.innerHTML = '<span class="loading">🔍 Identificando lugar...</span>';
-            resolveNameFromCoords(pin[1], pin[2], details, input);
-            return;
-        }
-        
-        // Fallback
-        input.dataset.val = val;
-        renderTag(details, "🔗 Enlace Web", 'gray');
-        return;
-    }
-
-    // 2. Texto manual -> API
-    details.innerHTML = '<span class="loading">🔍 Buscando...</span>';
-    timeout = setTimeout(() => {
-        smartSearch(val, details, input);
-    }, 700);
-}
-
-// --- BÚSQUEDA INTELIGENTE DE NOMBRE CORTO ---
-async function resolveNameFromCoords(lat, lon, container, input) {
-    const data = await fetchReverse(lat, lon);
-    if (data) {
-        const name = extractShortName(data);
-        input.dataset.val = `${lat},${lon}`; // Para la ruta seguimos usando coords (es más preciso)
-        renderTag(container, "🏢 " + name, 'blue');
-    } else {
-        input.dataset.val = `${lat},${lon}`;
-        renderTag(container, `📍 ${lat}, ${lon}`, 'gray');
-    }
-}
-
-async function smartSearch(query, container, input) {
-    let found = await fetchSearch(query);
-    
-    // Cascada simple
-    if (!found && query.includes(',')) {
-        found = await fetchSearch(query.split(',').slice(0,2).join(','));
-    }
-
-    if (found) {
-        const shortName = extractShortName(found);
-        renderTag(container, "🏢 " + shortName, 'blue');
-        input.dataset.val = `${found.lat},${found.lon}`;
-    } else {
-        renderTag(container, "⚠️ Texto original", 'gray');
-        input.dataset.val = query;
-    }
-}
-
-// LÓGICA CLAVE: Extraer solo el nombre importante del JSON de Nominatim
-function extractShortName(place) {
-    // 1. ¿Tiene nombre propio explícito? (address.amenity, shop, tourism, leisure)
-    const addr = place.address || {};
-    
-    // Lista de campos que suelen ser "Nombres de sitios" y no calles
-    const nameFields = ['amenity', 'shop', 'tourism', 'leisure', 'office', 'building', 'historic', 'aeroway'];
-    
-    for (let field of nameFields) {
-        if (addr[field]) return addr[field]; // Ej: "Hotel DC" (amenity)
-    }
-
-    // 2. Si no es un POI, ¿es una calle/dirección?
-    if (addr.road || addr.pedestrian) {
-        let road = addr.road || addr.pedestrian;
-        if (addr.house_number) return `${road}, ${addr.house_number}`;
-        return road;
-    }
-
-    // 3. Fallback: El primer trozo del display_name
-    return place.display_name.split(',')[0];
-}
-
-async function fetchSearch(q) {
-    try {
-        const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&addressdetails=1&limit=1`);
-        return (await r.json())[0];
-    } catch(e) { return null; }
-}
-
-async function fetchReverse(lat, lon) {
-    try {
-        const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&addressdetails=1`);
-        return await r.json();
-    } catch(e) { return null; }
-}
-
-function renderTag(container, text, color) {
-    container.innerHTML = `<div class="place-tag tag-${color}">${text}</div>`;
-}
-
-function generate() {
-    const inputs = document.querySelectorAll('input');
-    const points = [];
-    inputs.forEach(inp => {
-        let val = inp.dataset.val || inp.value.trim();
-        if(val) points.push(encodeURIComponent(val));
-    });
-
-    if(points.length < 2) { alert("Faltan puntos"); return; }
-
-    const url = `https://www.google.com/maps/dir/?api=1&origin=${points[0]}&destination=${points[points.length-1]}` + 
-                (points.length > 2 ? `&waypoints=${points.slice(1,-1).join('%7C')}` : '');
-
-    const a = document.getElementById('final-link');
-    document.getElementById('output').style.display = 'block';
-    a.href = url;
-    a.textContent = url;
-}
-</script>
-
+    <!-- Scripts: Leaflet y nuestro código -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="script.js"></script>
 </body>
 </html>
